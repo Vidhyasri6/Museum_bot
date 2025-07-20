@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seikozen Museum Chatbot</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #e5ddd5;
+            font-family: Arial, sans-serif;
+        }
+
+        .iphone {
+            width: 375px;
+            height: 812px;
+            background-color: #ffffff;
+            border-radius: 40px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+            border: 16px solid #000;
+        }
+
+        .iphone:before {
+            content: '';
+            position: absolute;
+            width: 210px;
+            height: 30px;
+            background-color: black;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 0 0 15px 15px;
+            z-index: 2;
+        }
+
+        .iphone:after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 40px;
+            background-color: #075e54;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .chat-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-color: #ffffff;
+            border-radius: 40px;
+            position: relative;
+            z-index: 0;
+        }
+
+        .header {
+            background-color: #075e54;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 40px 40px 0 0;
+            z-index: 3;
+            position: relative;
+        }
+
+        .chat-window {
+            flex: 1;
+            padding: 10px;
+            background-color: #e5ddd5;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            z-index: 3;
+        }
+
+        .chat-window p {
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 75%;
+            word-wrap: break-word;
+            position: relative;
+            display: inline-block;
+        }
+
+        .bot-message {
+            background-color: #ffffff;
+            align-self: flex-start;
+            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+        }
+
+        .user-message {
+            background-color: #dcf8c6;
+            align-self: flex-end;
+            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+        }
+
+        .timestamp {
+            display: inline-block;
+            font-size: 10px;
+            color: #999;
+            margin-left: 10px;
+            vertical-align: bottom;
+        }
+
+        .date-separator {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+
+        .input-area {
+            background-color: #f0f0f0;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0 0 40px 40px;
+            z-index: 3;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            padding: 5px 10px;
+        }
+
+        .option-button {
+            background-color: #075e54;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 10px;
+            margin: 5px 0;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .option-button:hover {
+            background-color: #128c7e;
+        }
+
+        input {
+            width: 80%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            margin: 5px 0;
+        }
+
+        #qrcode {
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs2@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+    <div class="iphone">
+        <div class="chat-container">
+            <div class="header">
+                Seikozen Museum Chatbot
+            </div>
+            <div class="chat-window" id="chat-window">
+                <!-- Chatbot messages will appear here -->
+            </div>
+            <div class="input-area">
+                <div class="options-container" id="options-container">
+                    <!-- Options will appear here -->
+                </div>
+            </div>
+            <div id="qrcode"></div>
+        </div>
+    </div>
+
+    <script>
+        let totalTickets = 0;
+        let adultsCount = 0;
+        let childrenCount = 0;
+        let malesCount = 0;
+        let femalesCount = 0;
+        let othersCount = 0;
+        let photographyCharge = 0;
+        let isIndian = false;
+        let bookingType = '';
+        let isInstitution = false;
+        let selectedLanguage = 'en';
+
+        const translations = {
+            en: {
+                hello: "👋 Hello, welcome to Seikozen Museum ! Are you an Indian or Foreigner?",
+                bookingTypeQuestion: "Are you booking for an Individual or an Institution?",
+                specifyTickets: "Great! How many tickets do you need for",
+                enterTickets: "Please specify the number of tickets:",
+                validTickets: "Please enter a valid number of tickets.",
+                specifyAdults: "Got it! Please specify the number of adults:",
+                enterAdults: "Enter the number of adults:",
+                validAdults: "Please enter a valid number of adults.",
+                specifyMales: "Now, please specify the number of males:",
+                enterMales: "Enter the number of males:",
+                validMales: "Please enter a valid number of males.",
+                specifyFemales: "Now, please specify the number of females:",
+                enterFemales: "Enter the number of females:",
+                validFemales: "Please enter a valid number of females.",
+                genderCountError: "The number of males and females exceeds the total number of tickets. Please adjust the numbers.",
+                confirmDetails: "Do you want to add photography charges?",
+                cameraOptions: ["Still Camera - Rs 200", "Video Camera - Rs 500", "None"],
+                billDetails: "Bill Details:",
+                proceedPayment: "Do you want to proceed to the payment page?",
+                paymentThankYou: "Thank you for booking! Generating your QR code...",
+                cancelBooking: "Booking has been canceled. Do you want to start over?",
+                startOver: "Do you want to start over?",
+                invalidInput: "Sorry, I didn't catch that. Could you please clarify?",
+                languages: "Please select your language:",
+                languageOptions: ["English", "Hindi", "Spanish"]
+            },
+            hi: {
+                hello: "👋 नमस्ते, सेइकोज़ेन चिड़ियाघर में आपका स्वागत है! क्या आप भारतीय हैं या विदेशी?",
+                bookingTypeQuestion: "क्या आप किसी व्यक्ति या संस्था के लिए बुकिंग कर रहे हैं?",
+                specifyTickets: "बहुत बढ़िया! आपको कितने टिकट चाहिए",
+                enterTickets: "कृपया टिकटों की संख्या निर्दिष्ट करें:",
+                validTickets: "कृपया टिकटों की एक मान्य संख्या दर्ज करें।",
+                specifyAdults: "समझ गया! कृपया वयस्कों की संख्या निर्दिष्ट करें:",
+                enterAdults: "वयस्कों की संख्या दर्ज करें:",
+                validAdults: "कृपया वयस्कों की एक मान्य संख्या दर्ज करें।",
+                specifyMales: "अब, कृपया पुरुषों की संख्या निर्दिष्ट करें:",
+                enterMales: "पुरुषों की संख्या दर्ज करें:",
+                validMales: "कृपया पुरुषों की एक मान्य संख्या दर्ज करें।",
+                specifyFemales: "अब, कृपया महिलाओं की संख्या निर्दिष्ट करें:",
+                enterFemales: "महिलाओं की संख्या दर्ज करें:",
+                validFemales: "कृपया महिलाओं की एक मान्य संख्या दर्ज करें।",
+                genderCountError: "पुरुषों और महिलाओं की संख्या कुल टिकटों की संख्या से अधिक है। कृपया संख्याएँ समायोजित करें।",
+                confirmDetails: "क्या आप फोटोग्राफी शुल्क जोड़ना चाहते हैं?",
+                cameraOptions: ["स्टिल कैमरा - रु 200", "वीडियो कैमरा - रु 500", "कोई नहीं"],
+                billDetails: "बिल विवरण:",
+                proceedPayment: "क्या आप भुगतान पृष्ठ पर जाना चाहते हैं?",
+                paymentThankYou: "बुकिंग के लिए धन्यवाद! आपका क्यूआर कोड उत्पन्न कर रहा है...",
+                cancelBooking: "बुकिंग रद्द कर दी गई है। क्या आप फिर से शुरू करना चाहते हैं?",
+                startOver: "क्या आप फिर से शुरू करना चाहते हैं?",
+                invalidInput: "मुझे खेद है, मैंने वह पकड़ नहीं पाया। क्या आप कृपया स्पष्ट कर सकते हैं?",
+                languages: "कृपया अपनी भाषा चुनें:",
+                languageOptions: ["अंग्रेज़ी", "हिंदी", "स्पेनिश"]
+            },
+            es: {
+                hello: "👋 Hola, ¡bienvenido al Zoológico Seikozen! ¿Eres indio o extranjero?",
+                bookingTypeQuestion: "¿Estás reservando para un individuo o una institución?",
+                specifyTickets: "¡Genial! ¿Cuántos boletos necesitas para",
+                enterTickets: "Por favor, especifica el número de boletos:",
+                validTickets: "Por favor, ingresa un número válido de boletos.",
+                specifyAdults: "¡Entendido! Por favor, especifica el número de adultos:",
+                enterAdults: "Ingresa el número de adultos:",
+                validAdults: "Por favor, ingresa un número válido de adultos.",
+                specifyMales: "Ahora, por favor, especifica el número de hombres:",
+                enterMales: "Ingresa el número de hombres:",
+                validMales: "Por favor, ingresa un número válido de hombres.",
+                specifyFemales: "Ahora, por favor, especifica el número de mujeres:",
+                enterFemales: "Ingresa el número de mujeres:",
+                validFemales: "Por favor, ingresa un número válido de mujeres.",
+                genderCountError: "El número de hombres y mujeres excede el número total de boletos. Por favor, ajusta los números.",
+                confirmDetails: "¿Deseas agregar cargos por fotografía?",
+                cameraOptions: ["Cámara fija - Rs 200", "Cámara de video - Rs 500", "Ninguno"],
+                billDetails: "Detalles de la factura:",
+                proceedPayment: "¿Deseas proceder a la página de pago?",
+                paymentThankYou: "¡Gracias por reservar! Generando tu código QR...",
+                cancelBooking: "La reserva ha sido cancelada. ¿Quieres empezar de nuevo?",
+                startOver: "¿Quieres empezar de nuevo?",
+                invalidInput: "Lo siento, no entendí eso. ¿Podrías aclarar?",
+                languages: "Por favor, selecciona tu idioma:",
+                languageOptions: ["Inglés", "Hindi", "Español"]
+            }
+
+        };
+
+        function translate(key) {
+            return translations[selectedLanguage][key] || key;
+        }
+
+        function startChat() {
+            appendBotMessage(translate('hello'));
+            appendLanguageOptions();
+        }
+
+        function appendBotMessage(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const messageElement = `<p class="bot-message">${message}<span class="timestamp">${timestamp}</span></p>`;
+            $('#chat-window').append(messageElement);
+            scrollToBottom();
+        }
+
+        function appendUserMessage(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const messageElement = `<p class="user-message">${message}<span class="timestamp">${timestamp}</span></p>`;
+            $('#chat-window').append(messageElement);
+            scrollToBottom();
+        }
+
+        function appendLanguageOptions() {
+            $('#options-container').empty();
+            const languages = translations[selectedLanguage]['languageOptions'];
+            languages.forEach(language => {
+                const button = `<button class="option-button" onclick="selectLanguage('${language}')">${language}</button>`;
+                $('#options-container').append(button);
+            });
+        }
+
+        function selectLanguage(language) {
+            switch (language) {
+                case 'English':
+                    selectedLanguage = 'en';
+                    break;
+                case 'Hindi':
+                    selectedLanguage = 'hi';
+                    break;
+                case 'Spanish':
+                    selectedLanguage = 'es';
+                    break;
+                default:
+                    selectedLanguage = 'en';
+            }
+            appendUserMessage(language);
+            askBookingType();
+        }
+
+        function askBookingType() {
+            appendBotMessage(translate('bookingTypeQuestion'));
+            appendBookingTypeOptions();
+        }
+
+        function appendBookingTypeOptions() {
+            $('#options-container').empty();
+            const options = ['Individual', 'Institution'];
+            options.forEach(option => {
+                const button = `<button class="option-button" onclick="selectBookingType('${option}')">${option}</button>`;
+                $('#options-container').append(button);
+            });
+        }
+
+        function selectBookingType(type) {
+            bookingType = type.toLowerCase();
+            appendUserMessage(type);
+            askTicketCount();
+        }
+
+        function askTicketCount() {
+            appendBotMessage(translate('specifyTickets'));
+            const inputField = `<input type="number" min="1" id="ticketCountInput" placeholder="${translate('enterTickets')}">`;
+            const button = `<button class="option-button" onclick="submitTicketCount()">${translate('enterTickets')}</button>`;
+            $('#options-container').html(inputField + button);
+        }
+
+        function submitTicketCount() {
+            const ticketCount = parseInt($('#ticketCountInput').val());
+            if (!isNaN(ticketCount) && ticketCount > 0) {
+                totalTickets = ticketCount;
+                appendUserMessage(totalTickets);
+                askAdultCount();
+            } else {
+                appendBotMessage(translate('validTickets'));
+            }
+        }
+
+        function askAdultCount() {
+            appendBotMessage(translate('specifyAdults'));
+            const inputField = `<input type="number" min="1" id="adultsCountInput" placeholder="${translate('enterAdults')}">`;
+            const button = `<button class="option-button" onclick="submitAdultCount()">${translate('enterAdults')}</button>`;
+            $('#options-container').html(inputField + button);
+        }
+
+        function submitAdultCount() {
+            const adultCount = parseInt($('#adultsCountInput').val());
+            if (!isNaN(adultCount) && adultCount > 0 && adultCount <= totalTickets) {
+                adultsCount = adultCount;
+                appendUserMessage(adultsCount);
+                askMaleCount();
+            } else {
+                appendBotMessage(translate('validAdults'));
+            }
+        }
+
+        function askMaleCount() {
+            appendBotMessage(translate('specifyMales'));
+            const inputField = `<input type="number" min="0" id="malesCountInput" placeholder="${translate('enterMales')}">`;
+            const button = `<button class="option-button" onclick="submitMaleCount()">${translate('enterMales')}</button>`;
+            $('#options-container').html(inputField + button);
+        }
+
+        function submitMaleCount() {
+            const maleCount = parseInt($('#malesCountInput').val());
+            if (!isNaN(maleCount) && maleCount >= 0) {
+                malesCount = maleCount;
+                appendUserMessage(malesCount);
+                askFemaleCount();
+            } else {
+                appendBotMessage(translate('validMales'));
+            }
+        }
+
+        function askFemaleCount() {
+            appendBotMessage(translate('specifyFemales'));
+            const inputField = `<input type="number" min="0" id="femalesCountInput" placeholder="${translate('enterFemales')}">`;
+            const button = `<button class="option-button" onclick="submitFemaleCount()">${translate('enterFemales')}</button>`;
+            $('#options-container').html(inputField + button);
+        }
+
+        function submitFemaleCount() {
+            const femaleCount = parseInt($('#femalesCountInput').val());
+            if (!isNaN(femaleCount) && femaleCount >= 0 && (malesCount + femaleCount) <= totalTickets) {
+                femalesCount = femaleCount;
+                appendUserMessage(femalesCount);
+                askPhotographyCharge();
+            } else {
+                appendBotMessage(translate('genderCountError'));
+            }
+        }
+
+        function askPhotographyCharge() {
+            appendBotMessage(translate('confirmDetails'));
+            appendCameraOptions();
+        }
+
+        function appendCameraOptions() {
+            $('#options-container').empty();
+            const options = translate('cameraOptions');
+            options.forEach(option => {
+                const button = `<button class="option-button" onclick="selectCamera('${option}')">${option}</button>`;
+                $('#options-container').append(button);
+            });
+        }
+
+        function selectCamera(option) {
+            appendUserMessage(option);
+            if (option.includes('Still')) {
+                photographyCharge = 200;
+            } else if (option.includes('Video')) {
+                photographyCharge = 500;
+            }
+            showBillDetails();
+        }
+
+        function showBillDetails() {
+            const billDetails = `
+                ${translate('billDetails')}
+                <br>Adults: ${adultsCount}
+                <br>Males: ${malesCount}
+                <br>Females: ${femalesCount}
+                <br>Photography Charges: ${photographyCharge}
+            `;
+            appendBotMessage(billDetails);
+            appendProceedToPaymentOption();
+        }
+
+        function appendProceedToPaymentOption() {
+            $('#options-container').empty();
+            const options = [translate('proceedPayment'), translate('startOver')];
+            options.forEach(option => {
+                const button = `<button class="option-button" onclick="handlePayment('${option}')">${option}</button>`;
+                $('#options-container').append(button);
+            });
+        }
+
+        function handlePayment(option) {
+            appendUserMessage(option);
+            if (option === translate('proceedPayment')) {
+                appendBotMessage(translate('paymentThankYou'));
+                generateQRCode();
+            } else if (option === translate('startOver')) {
+                resetChat();
+            }
+        }
+
+        function resetChat() {
+            totalTickets = 0;
+            adultsCount = 0;
+            childrenCount = 0;
+            malesCount = 0;
+            femalesCount = 0;
+            othersCount = 0;
+            photographyCharge = 0;
+            isIndian = false;
+            bookingType = '';
+            isInstitution = false;
+
+            $('#chat-window').empty();
+            $('#options-container').empty();
+            $('#qrcode').empty();
+
+            startChat();
+        }
+
+        function generateQRCode() {
+            const qrData = `
+                Boletos Totales: ${totalTickets}
+                Adultos: ${adultsCount}
+                Niños: ${childrenCount}
+                Hombres: ${malesCount}
+                Mujeres: ${femalesCount}
+                Otros: ${othersCount}
+                Cargos de Fotografía: Rs ${photographyCharge}
+            `;
+            $('#qrcode').empty();
+            new QRCode(document.getElementById('qrcode'), {
+                text: qrData,
+                width: 200,
+                height: 200
+            });
+        }
+
+        function scrollToBottom() {
+            const chatWindow = document.getElementById('chat-window');
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        $(document).ready(function() {
+            startChat();
+        });
+    </script>
+</body>
+</html>
